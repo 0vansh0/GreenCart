@@ -1,0 +1,883 @@
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Download,
+  FileCheck2,
+  FileText,
+  IndianRupee,
+  MapPin,
+  Package,
+  ShieldCheck,
+  Truck,
+  UserRound,
+  X,
+} from "lucide-react";
+import { useNavigate, useLocation } from "react-router";
+
+import BuyerHeader from "../../components/BuyerHeader";
+
+const CONTRACT = {
+  id: "GC-CON-92841",
+  status: "Awaiting Buyer Confirmation",
+
+  buyer: {
+    name: "FreshMart Foods",
+    type: "Verified Buyer",
+    location: "Patna, Bihar",
+    contact: "Procurement Team",
+  },
+
+  farmer: {
+    name: "Rajesh Kumar",
+    location: "Muzaffarpur, Bihar",
+    verified: true,
+    rating: 4.8,
+  },
+
+  produce: {
+    name: "Premium Sharbati Wheat",
+    variety: "Sharbati",
+    quantity: 40,
+    unit: "quintal",
+    quality: "Grade A",
+    moisture: "10.8%",
+  },
+
+  pricing: {
+    agreedPrice: 2860,
+    mandiPrice: 2760,
+    logistics: 4200,
+  },
+
+  delivery: {
+    destination: "FreshMart Foods Warehouse",
+    location: "Patna, Bihar",
+    method: "GreenCart Logistics",
+    expectedDate: "29 September 2026",
+  },
+
+  terms: [
+    "Produce quantity will be verified at pickup.",
+    "Quality will be checked against the agreed Grade A specification.",
+    "Moisture level should remain within the agreed quality range.",
+    "Final logistics cost may vary from the indicative estimate.",
+    "Transaction remains subject to the agreed quality-hold process.",
+  ],
+};
+
+function formatINR(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function SectionHeader({ icon: Icon, title, description }) {
+  return (
+    <div className="mb-5 flex gap-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+        <Icon size={18} />
+      </div>
+
+      <div>
+        <h2 className="text-base font-semibold text-slate-950">
+          {title}
+        </h2>
+
+        {description && (
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            {description}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, highlight = false }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-3 last:border-b-0">
+      <span className="text-sm text-slate-500">{label}</span>
+
+      <span
+        className={`text-right text-sm font-semibold ${
+          highlight ? "text-emerald-700" : "text-slate-800"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ProgressStep({ number, label, active, completed }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+          completed
+            ? "bg-emerald-600 text-white"
+            : active
+              ? "border-2 border-emerald-600 bg-white text-emerald-700"
+              : "bg-slate-100 text-slate-400"
+        }`}
+      >
+        {completed ? <Check size={14} /> : number}
+      </div>
+
+      <span
+        className={`hidden text-xs font-medium sm:block ${
+          completed || active
+            ? "text-slate-800"
+            : "text-slate-400"
+        }`}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+export default function ContractDetails() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [confirmed, setConfirmed] = useState(false);
+  const [showTerms, setShowTerms] = useState(true);
+  const [showSignModal, setShowSignModal] = useState(false);
+  const [signed, setSigned] = useState(false);
+
+  const sourceOffer = location.state?.offerId;
+
+  const grossValue =
+    CONTRACT.produce.quantity *
+    CONTRACT.pricing.agreedPrice;
+
+  const sellerRealization =
+    grossValue - CONTRACT.pricing.logistics;
+
+  const handleDownload = () => {
+    const contractText = `
+GREENCART DIGITAL CONTRACT
+==========================
+
+Contract ID: ${CONTRACT.id}
+
+BUYER
+${CONTRACT.buyer.name}
+${CONTRACT.buyer.location}
+
+FARMER
+${CONTRACT.farmer.name}
+${CONTRACT.farmer.location}
+
+PRODUCE
+${CONTRACT.produce.name}
+Variety: ${CONTRACT.produce.variety}
+Quantity: ${CONTRACT.produce.quantity} ${CONTRACT.produce.unit}
+Quality: ${CONTRACT.produce.quality}
+Moisture: ${CONTRACT.produce.moisture}
+
+COMMERCIAL TERMS
+Agreed Price: ${formatINR(CONTRACT.pricing.agreedPrice)} / quintal
+Mandi Reference: ${formatINR(CONTRACT.pricing.mandiPrice)}
+Gross Produce Value: ${formatINR(grossValue)}
+Indicative Logistics: ${formatINR(CONTRACT.pricing.logistics)}
+
+DELIVERY
+${CONTRACT.delivery.destination}
+${CONTRACT.delivery.location}
+Expected Delivery: ${CONTRACT.delivery.expectedDate}
+
+TERMS
+${CONTRACT.terms.map((term, index) => `${index + 1}. ${term}`).join("\n")}
+
+This document is a frontend prototype generated by GreenCart.
+No legally binding transaction is created by this demo.
+`;
+
+    const blob = new Blob([contractText], {
+      type: "text/plain",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${CONTRACT.id}.txt`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSign = () => {
+    setShowSignModal(false);
+    setSigned(true);
+  };
+
+  const handleContinue = () => {
+    navigate("/buyer/quality-hold", {
+      state: {
+        contractId: CONTRACT.id,
+        signed: true,
+      },
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F7F9F7] text-slate-900">
+      <BuyerHeader
+        search=""
+        onSearchChange={() => {}}
+      />
+
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* BACK */}
+        <button
+          onClick={() => navigate("/buyer/offers-received")}
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-emerald-700"
+        >
+          <ArrowLeft size={16} />
+          Back to offers
+        </button>
+
+        {/* HEADER */}
+        <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+              <FileCheck2 size={14} />
+              DIGITAL CONTRACT
+            </div>
+
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+              Contract details
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Review the agreed commercial, quality and delivery terms
+              before confirming this transaction.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDownload}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <Download size={16} />
+              Download
+            </button>
+
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Contract ID
+              </p>
+
+              <p className="mt-1 font-mono text-xs font-semibold text-slate-800">
+                {CONTRACT.id}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* PROGRESS */}
+        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+            <ProgressStep
+              number="1"
+              label="Offer"
+              completed
+            />
+
+            <ProgressStep
+              number="2"
+              label="Contract"
+              active={!signed}
+              completed={signed}
+            />
+
+            <ProgressStep
+              number="3"
+              label="Quality Hold"
+              active={signed}
+            />
+
+            <ProgressStep
+              number="4"
+              label="Logistics"
+            />
+
+            <ProgressStep
+              number="5"
+              label="Payment"
+            />
+
+            <ProgressStep
+              number="6"
+              label="Tracking"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
+          {/* MAIN CONTRACT */}
+          <div className="space-y-6">
+            {/* STATUS */}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
+              <div className="flex gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                  <Clock3Icon />
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-amber-950">
+                    {signed
+                      ? "Contract confirmed"
+                      : CONTRACT.status}
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-amber-900/70">
+                    {signed
+                      ? "You have confirmed the contract terms. Continue to the quality protection step."
+                      : "Review all details carefully before signing this digital contract."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* PARTIES */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <SectionHeader
+                icon={UserRound}
+                title="Parties"
+                description="The buyer and farmer associated with this transaction."
+              />
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 p-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Buyer
+                  </p>
+
+                  <div className="mt-4 flex items-start gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                      <UserRound size={19} />
+                    </div>
+
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {CONTRACT.buyer.name}
+                      </p>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {CONTRACT.buyer.contact}
+                      </p>
+
+                      <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700">
+                        <ShieldCheck size={14} />
+                        {CONTRACT.buyer.type}
+                      </div>
+
+                      <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                        <MapPin size={13} />
+                        {CONTRACT.buyer.location}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 p-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Farmer / Seller
+                  </p>
+
+                  <div className="mt-4 flex items-start gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                      <UserRound size={19} />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-slate-900">
+                          {CONTRACT.farmer.name}
+                        </p>
+
+                        {CONTRACT.farmer.verified && (
+                          <ShieldCheck
+                            size={15}
+                            className="text-emerald-600"
+                          />
+                        )}
+                      </div>
+
+                      <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                        <MapPin size={13} />
+                        {CONTRACT.farmer.location}
+                      </p>
+
+                      <p className="mt-2 text-xs font-medium text-slate-600">
+                        ★ {CONTRACT.farmer.rating} seller rating
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* PRODUCE */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <SectionHeader
+                icon={Package}
+                title="Produce details"
+                description="The produce covered by this contract."
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <DetailRow
+                  label="Produce"
+                  value={CONTRACT.produce.name}
+                />
+
+                <DetailRow
+                  label="Variety"
+                  value={CONTRACT.produce.variety}
+                />
+
+                <DetailRow
+                  label="Quantity"
+                  value={`${CONTRACT.produce.quantity} ${CONTRACT.produce.unit}`}
+                />
+
+                <DetailRow
+                  label="Quality"
+                  value={CONTRACT.produce.quality}
+                  highlight
+                />
+
+                <DetailRow
+                  label="Moisture"
+                  value={CONTRACT.produce.moisture}
+                />
+              </div>
+            </section>
+
+            {/* COMMERCIAL */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <SectionHeader
+                icon={IndianRupee}
+                title="Commercial terms"
+                description="Pricing agreed between buyer and seller."
+              />
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <DetailRow
+                  label="Agreed price"
+                  value={`${formatINR(
+                    CONTRACT.pricing.agreedPrice
+                  )} / quintal`}
+                  highlight
+                />
+
+                <DetailRow
+                  label="Mandi reference"
+                  value={`${formatINR(
+                    CONTRACT.pricing.mandiPrice
+                  )} / quintal`}
+                />
+
+                <DetailRow
+                  label="Quantity"
+                  value={`${CONTRACT.produce.quantity} ${CONTRACT.produce.unit}`}
+                />
+
+                <DetailRow
+                  label="Gross produce value"
+                  value={formatINR(grossValue)}
+                  highlight
+                />
+
+                <DetailRow
+                  label="Indicative logistics"
+                  value={formatINR(
+                    CONTRACT.pricing.logistics
+                  )}
+                />
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-emerald-700">
+                      Estimated seller realization
+                    </p>
+
+                    <p className="mt-1 text-xl font-semibold text-emerald-950">
+                      {formatINR(sellerRealization)}
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-emerald-700">
+                    Before other applicable costs
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* DELIVERY */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <SectionHeader
+                icon={Truck}
+                title="Delivery terms"
+                description="Agreed delivery destination and logistics method."
+              />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs text-slate-400">
+                    Destination
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {CONTRACT.delivery.destination}
+                  </p>
+
+                  <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                    <MapPin size={13} />
+                    {CONTRACT.delivery.location}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs text-slate-400">
+                    Logistics
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {CONTRACT.delivery.method}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Estimated delivery{" "}
+                    {CONTRACT.delivery.expectedDate}
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* TERMS */}
+            <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <button
+                onClick={() => setShowTerms(!showTerms)}
+                className="flex w-full items-center justify-between p-6 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                    <FileText size={18} />
+                  </div>
+
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-950">
+                      Contract terms
+                    </h2>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                      Conditions attached to this transaction.
+                    </p>
+                  </div>
+                </div>
+
+                <ChevronDown
+                  size={19}
+                  className={`text-slate-400 transition ${
+                    showTerms ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              <AnimatePresence initial={false}>
+                {showTerms && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="border-t border-slate-100 px-6 pb-6 pt-5">
+                      <div className="space-y-3">
+                        {CONTRACT.terms.map((term, index) => (
+                          <div
+                            key={term}
+                            className="flex gap-3"
+                          >
+                            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                              <Check size={12} />
+                            </div>
+
+                            <p className="text-sm leading-6 text-slate-600">
+                              {index + 1}. {term}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </section>
+          </div>
+
+          {/* RIGHT SIDEBAR */}
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="mb-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Contract action
+                </p>
+
+                <h2 className="mt-2 text-xl font-semibold text-slate-950">
+                  {signed
+                    ? "Contract confirmed"
+                    : "Review & confirm"}
+                </h2>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-sm text-slate-500">
+                      Produce value
+                    </span>
+
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatINR(grossValue)}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex justify-between gap-4">
+                    <span className="text-sm text-slate-500">
+                      Logistics
+                    </span>
+
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatINR(
+                        CONTRACT.pricing.logistics
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 border-t border-slate-200 pt-3">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-sm font-semibold text-slate-800">
+                        Contract value
+                      </span>
+
+                      <span className="text-lg font-semibold text-emerald-700">
+                        {formatINR(
+                          grossValue +
+                            CONTRACT.pricing.logistics
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {!signed && (
+                  <label className="flex cursor-pointer gap-3 rounded-2xl border border-slate-200 p-4">
+                    <input
+                      type="checkbox"
+                      checked={confirmed}
+                      onChange={(e) =>
+                        setConfirmed(e.target.checked)
+                      }
+                      className="mt-1 h-4 w-4 accent-emerald-600"
+                    />
+
+                    <span className="text-xs leading-5 text-slate-600">
+                      I have reviewed the contract details and
+                      agree to proceed with the stated commercial,
+                      quality and delivery terms.
+                    </span>
+                  </label>
+                )}
+
+                {!signed ? (
+                  <motion.button
+                    whileHover={
+                      confirmed ? { y: -1 } : {}
+                    }
+                    whileTap={
+                      confirmed ? { scale: 0.98 } : {}
+                    }
+                    disabled={!confirmed}
+                    onClick={() => setShowSignModal(true)}
+                    className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold text-white transition ${
+                      confirmed
+                        ? "bg-gradient-to-r from-emerald-700 to-emerald-600 shadow-lg shadow-emerald-900/15 hover:from-emerald-800 hover:to-emerald-700"
+                        : "cursor-not-allowed bg-slate-300"
+                    }`}
+                  >
+                    <FileCheck2 size={17} />
+                    Confirm & Sign Contract
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleContinue}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-700 to-emerald-600 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:from-emerald-800 hover:to-emerald-700"
+                  >
+                    Proceed to Quality Hold
+                    <ArrowRight size={17} />
+                  </motion.button>
+                )}
+
+                <button
+                  onClick={handleDownload}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  <Download size={16} />
+                  Download Contract
+                </button>
+              </div>
+            </div>
+
+            {/* SECURITY */}
+            <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+              <div className="flex gap-3">
+                <ShieldCheck
+                  size={18}
+                  className="mt-0.5 shrink-0 text-emerald-700"
+                />
+
+                <div>
+                  <p className="text-sm font-semibold text-emerald-950">
+                    GreenCart protection
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-emerald-800/70">
+                    The contract connects this offer to quality
+                    protection, logistics, payment and shipment
+                    tracking.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-4 text-center text-[11px] leading-5 text-slate-400">
+              Prototype only — this frontend does not create a
+              legally binding contract.
+            </p>
+          </aside>
+        </div>
+      </main>
+
+      {/* SIGN MODAL */}
+      <AnimatePresence>
+        {showSignModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+            onClick={() => setShowSignModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.98 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <FileCheck2 size={21} />
+                  </div>
+
+                  <h2 className="mt-4 text-xl font-semibold text-slate-950">
+                    Sign digital contract
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    Confirm that you have reviewed the terms and
+                    want to proceed with this transaction.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowSignModal(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs text-slate-400">
+                  Contract
+                </p>
+
+                <p className="mt-1 font-mono text-sm font-semibold text-slate-800">
+                  {CONTRACT.id}
+                </p>
+
+                <div className="mt-4 flex justify-between">
+                  <span className="text-xs text-slate-500">
+                    Buyer
+                  </span>
+
+                  <span className="text-xs font-semibold text-slate-800">
+                    {CONTRACT.buyer.name}
+                  </span>
+                </div>
+
+                <div className="mt-2 flex justify-between">
+                  <span className="text-xs text-slate-500">
+                    Farmer
+                  </span>
+
+                  <span className="text-xs font-semibold text-slate-800">
+                    {CONTRACT.farmer.name}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-xs leading-5 text-amber-900/80">
+                  This is a prototype digital signature. No legally
+                  binding electronic signature is created.
+                </p>
+              </div>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  onClick={() => setShowSignModal(false)}
+                  className="h-11 flex-1 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleSign}
+                  className="h-11 flex-1 rounded-xl bg-emerald-700 text-sm font-semibold text-white hover:bg-emerald-800"
+                >
+                  Sign Contract
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Clock3Icon() {
+  return <span className="text-lg">◷</span>;
+}
